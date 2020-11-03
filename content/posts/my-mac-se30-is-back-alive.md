@@ -6,7 +6,11 @@ draft: false
 
 _Or how I fixed my Mac SE/30 that was not booting unexpectedly_
 
+---
+## Updates
+
 [02 November 2020] This article was also featured on Hackaday : [BODGE WIRE SAVES A VINTAGE MAC SE/30 FROM THE HEAP](https://hackaday.com/2020/11/01/bodge-wire-saves-a-vintage-mac-se-30-from-the-heap/)
+---
 
 
 One day around a year ago I was playing with my SE/30 (the best looking computer ever) and I was trying to install Debian on it for fun. But after inserting some floppies and trying to boot from them the computer wouldn't turn back on. I mean it would turn on but with weird static graphics and no sound at startup. I already had a hard time figuring out how I would boot Linux on that machine (which I succeeded at doing) that I did not want to spend more time fixing it. 
