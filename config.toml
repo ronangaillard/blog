@@ -1,0 +1,46 @@
+baseURL = "https://ronangaillard.github.io"
+languageCode = "en-us"
+title = "Ronan Gaillard"
+theme = "cactus"
+
+googleAnalytics = "UA-181304069-1"
+
+disableKinds = ["about"]
+
+[[menu.main]]
+  name = "Home"
+  url = "/"
+  weight = 1
+
+[[menu.main]]
+  name = "About"
+  url = "/about/"
+  weight = 4
+
+[markup]
+  [markup.tableOfContents]
+    endLevel = 4
+    ordered = false
+    startLevel = 2
+
+[params]
+  colortheme = "classic"
+  mainSection = "posts"
+  showProjectsList = false
+  projectsUrl = "https://github.com/ronangaillard"
+
+[[params.social]]
+  name = "github"
+  link = "https://github.com/ronangaillard"
+
+[[params.social]]
+  name = "twitter"
+  link = "https://twitter.com/RonanGaillard"
+
+[[params.social]]
+  name = "linkedin"
+  link = "https://www.linkedin.com/in/ronangaillard/"
+
+[[params.social]]
+  name = "instagram"
+  link = "https://www.instagram.com/ronangaillard/"
