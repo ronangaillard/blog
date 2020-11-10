@@ -42,6 +42,8 @@ That design is available on my [GitHub](https://github.com/ronangaillard/68net).
   
 ## On The Technical Side
 
+Schematics are available [here](/68net-schematics-rev-0.pdf) (may not be up to date, check on my [GitHub](https://github.com/ronangaillard/68net) for latest content).
+
 The design is based around an STM32F072R8, for three main reasons :
  - it's an ARM chip, so development tools are open source and powerful (and I have experience with STM32 as well)
  - it has an USB DFU bootloader, so any end-user will be able to upgrade the board without expensive hardware flashing tool
