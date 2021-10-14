@@ -1,4 +1,4 @@
-baseURL = "https://ronangaillard.github.io"
+baseURL = "/"
 languageCode = "en-us"
 title = "Ronan Gaillard"
 theme = "cactus"
