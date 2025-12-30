@@ -37,7 +37,9 @@ The first step was understanding how this scanner actually works. I found a serv
 
 The "Processor" device type was interesting. Unlike standard SCSI scanners that use vendor-specific commands, this one uses generic SEND (0x0A) and RECEIVE (0x08) commands to exchange ESC/I protocol data. The ESC/I protocol is Epson's standard scanner command language, same family as what their flatbed scanners use.
 
-I was surprised by how technical the service manual is. It details SCSI timings, command sequences, data exchange formats... Did technicians really use this to repair people's scanners back in the day? I guess they did. Either way, it gave me a solid foundation, even if it stayed a bit high-level and didn't detail every command parameter.
+![Extract from the service manual](/img/filmscan/manual-extract.png)
+
+*I was surprised by how technical the service manual is. It details SCSI timings, command sequences, data exchange formats... Did technicians really use this to repair people's scanners back in the day? I guess they did. Either way, it gave me a solid foundation, even if it stayed a bit high-level and didn't detail every command parameter.*
 
 I also extracted the original 68k driver from the Epson TWAIN plugin (a 748KB resource fork) and started disassembling it to understand the command flow. Why not just use SANE on Linux? Because SANE doesn't actually support the FilmScan 200 out of the box. The mainline epson backend doesn't include it. So I was on my own.
 
