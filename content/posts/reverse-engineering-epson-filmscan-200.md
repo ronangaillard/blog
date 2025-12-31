@@ -14,7 +14,7 @@ I shoot and develop 35mm film at home. It's a nice hobby, and I do my own prints
 
 A while ago I found an Epson FilmScan 200 on leboncoin (the French Craigslist) for 10 euros. It's a dedicated 35mm film scanner from 1997 that scans at 1200 DPI optical. At that price, worth a try.
 
-The catch? This scanner only has a SCSI interface and the official drivers only work on Mac OS 8/9 or Windows 95/98. My main machines are modern Macs. I could install a virtual machine, but SCSI passthrough is basically impossible. I could use a USB-to-SCSI adapter, but those are expensive and often don't work well with scanners.
+The catch? This scanner only has a SCSI interface and the official drivers only work on Mac System 7/8 or Windows 95/98. My main machines are modern Macs. I could install a virtual machine, but SCSI passthrough is basically impossible. I could use a USB-to-SCSI adapter, but those are expensive and often don't work well with scanners.
 
 But wait. I have a Mac SE/30 sitting on my desk. The same one I [brought back to life](/posts/my-mac-se30-is-back-alive/) a few years ago. It has SCSI. It runs System 7. Could I scan directly on it?
 
