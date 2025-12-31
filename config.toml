@@ -33,13 +33,5 @@ disableKinds = ["about"]
   link = "https://github.com/ronangaillard"
 
 [[params.social]]
-  name = "twitter"
-  link = "https://twitter.com/RonanGaillard"
-
-[[params.social]]
   name = "linkedin"
   link = "https://www.linkedin.com/in/ronangaillard/"
-
-[[params.social]]
-  name = "instagram"
-  link = "https://www.instagram.com/ronangaillard/"
