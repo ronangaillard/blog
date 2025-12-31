@@ -3,7 +3,6 @@ languageCode = "en-us"
 title = "Ronan Gaillard"
 theme = "cactus"
 
-googleAnalytics = "UA-181304069-1"
 
 disableKinds = ["about"]
 
