@@ -10,6 +10,8 @@ _Or how I ended up building a factory game for a 2004 handheld with 4 MB of RAM,
 
 *Yes, I even made a game card for it. No, it's not for sale.*
 
+**[Download Factory DS](/files/factory-ds.nds)** (factory-ds.nds, 1.9 MB, in English and French). It runs on a real DS with a flashcart, or in an emulator like [melonDS](https://melonds.kuribo64.net/).
+
 ## Why the Nintendo DS?
 
 I think the Nintendo DS is one of the best consoles ever made. It's far from the most powerful, but I find it one of the best designed. Two screens, a real d-pad, four buttons and two shoulder buttons, and everything falls right under your thumbs. It's a clamshell, so you can throw it in a backpack without being afraid of breaking it, and it's simple: you open it and you play, you close it and it sleeps. And of course there is some nostalgia, I spent a lot of hours on it as a teenager.
@@ -59,7 +61,7 @@ The very first build was just colored squares. A red square for the drill, grey 
 
 ![Evolution of the game](/img/factory-ds/evolution.png)
 
-*From colored squares to the current version. And yes, the game is in French for now.*
+*From colored squares to the current version. These screenshots are in French, but the game is now also in English.*
 
 ## A world that does not fit in memory
 
@@ -237,6 +239,8 @@ I spent (too much) time on graphic styles. I asked Claude for several palettes a
 
 For the sounds, I asked Claude to find a few CC0 candidates on Freesound for each one, and I picked them by ear. Then they were all normalized to the same loudness, because the DS speakers are tiny and some sounds were inaudible next to the music. I also added rain, snow, sand wind in the desert, butterflies and fireflies (there were birds at some point, but they were distracting).
 
+The game was first written in French, so at the end I asked Claude to translate it into English too, around 1,300 texts in total. They had to stay as short as the French ones to fit in the little boxes of the interface. The language follows the setting of your console, and you can switch it at any time from the title screen or the options menu.
+
 And finally a small cinematic when you start a new game. Your ship drifts between the stars, the engine dies, and you wake up in the grass next to it. The first version was very "epic", with big flashes and shaking, but I wanted something calmer and more dreamy, so we toned it down until I liked it. Everything is drawn with code, there is no video in the ROM.
 
 ![Splash screen](/img/factory-ds/splash.gif)
@@ -247,4 +251,6 @@ You can now play Factory DS from start to finish, from cutting your first tree t
 
 But there is one thing melonDS didn't tell me. On my own DS, with a flashcart, the game's frame counter shows around 30 fps instead of 60. So the real console is slower than the emulator for this game, and I'm still investigating why. It could be the memory or the cache of the real console, which are hard to emulate exactly, or something else I haven't found yet. The statistics screen now shows the CPU time of each frame, and the benchmark ROM can write its results to the SD card, so I'm now running it on the real console to compare it with melonDS, line by line.
 
-That will be the second part of this article. I'll publish the ROM once it runs well on real hardware, so you can try it on your own DS. And maybe one day I'll try local wireless multiplayer, with two DS building the same factory!
+That will be the second part of this article. In the meantime you can already try it on your own DS or in melonDS, just don't be surprised if it runs at 30 fps on the real console for now. And maybe one day I'll try local wireless multiplayer, with two DS building the same factory!
+
+**[Download Factory DS](/files/factory-ds.nds)** (factory-ds.nds, 1.9 MB, in English and French). It runs on a real DS with a flashcart, or in an emulator like [melonDS](https://melonds.kuribo64.net/).
