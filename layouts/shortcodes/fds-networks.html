@@ -3,9 +3,9 @@
 {{ $id := delimit (shuffle (seq 1 9)) "" }}
 <figure class="fdsn" id="fdsn-{{ $id }}" data-mode="{{ $mode }}" style="margin:1.5em 0">
   <div class="fdsn-nav" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px"></div>
-  <div class="fdsn-step" style="min-height:5.2em;font-size:.9em;line-height:1.5;margin-bottom:8px"></div>
+  <div class="fdsn-step" style="font-size:.9em;line-height:1.5;margin-bottom:8px"></div>
   <canvas width="384" height="160" style="width:100%;max-width:768px;display:block;margin:0 auto;image-rendering:pixelated;image-rendering:crisp-edges;border-radius:8px;background:#1d1b24;border:6px solid #1d1b24;box-sizing:border-box;cursor:pointer"></canvas>
-  <div class="fdsn-panel" style="font-size:.85em;margin-top:8px;line-height:1.6;min-height:3.3em"></div>
+  <div class="fdsn-panel" style="font-size:.85em;margin-top:8px;line-height:1.6"></div>
   {{ with $caption }}<figcaption style="text-align:center;font-style:italic;margin-top:8px;font-size:0.9em;color:#666">{{ . }}</figcaption>{{ end }}
 </figure>
 <script>
@@ -258,6 +258,24 @@
     scene.render(si, t, now);
     requestAnimationFrame(loop);
   }
+  // hauteur fixe : celle de l'étape la plus longue, pour que la suite de l'article ne bouge pas
+  function lockHeights() {
+    var keep = stepEl.innerHTML, h = 0;
+    stepEl.style.minHeight = "0";
+    for (var k = 0; k < N; k++) {
+      stepEl.innerHTML = '<b>Step ' + (k + 1) + '/' + N + ': ' + STEPS[k].title + '</b><br>' + STEPS[k].text;
+      h = Math.max(h, stepEl.offsetHeight);
+    }
+    stepEl.innerHTML = keep; stepEl.style.minHeight = h + "px";
+    var row = MODE === "power"                                         // le panneau montre au plus 2 réseaux
+      ? "<div>" + dot("#000") + "<b>Network 1</b>: produces 20, needs 29" + bar("#000", 50) + "<b>100%</b> speed</div>"
+      : "<div>" + dot("#000") + "<b>Network 1</b>: 18 pieces, 3300 / 3420 water" + bar("#000", 50) + "</div>";
+    var two = row + row, keepP = panel.innerHTML;
+    panel.style.minHeight = "0"; panel.innerHTML = two; var hp = panel.offsetHeight; panel.innerHTML = keepP;
+    panel.style.minHeight = hp + "px";
+  }
+  lockHeights();
+  window.addEventListener("resize", lockHeights);
   var started = false;
   function start() { if (!started) { started = true; requestAnimationFrame(loop); } }
   sheet.onload = start;
