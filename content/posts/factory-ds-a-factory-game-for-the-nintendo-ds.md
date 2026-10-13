@@ -211,7 +211,7 @@ Then we went through the problems one by one. Measure, fix the worst one, measur
 
 On melonDS, a factory of almost 900 buildings runs at a steady 60 fps. The stress test with 3,630 buildings is under 16.7 ms on average, but about 300 of its 1,200 frames are still too slow. That's way bigger than what you can reasonably build with a d-pad though (and more than what a save can hold anyway).
 
-These are melonDS numbers. On my own DS the game doesn't run that fast, and I'm still investigating why (more on that at the end).
+These are melonDS numbers. The real console is a bit slower, more on that at the end.
 
 ## Playing it, again and again
 
@@ -249,8 +249,12 @@ And finally a small cinematic when you start a new game. Your ship drifts betwee
 
 You can now play Factory DS from start to finish, from cutting your first tree to launching rockets, and keep going after that. The ROM is under 2 MB.
 
-But there is one thing melonDS didn't tell me. On my own DS, with a flashcart, the game's frame counter shows around 30 fps instead of 60. So the real console is slower than the emulator for this game, and I'm still investigating why. It could be the memory or the cache of the real console, which are hard to emulate exactly, or something else I haven't found yet. The statistics screen now shows the CPU time of each frame, and the benchmark ROM can write its results to the SD card, so I'm now running it on the real console to compare it with melonDS, line by line.
+But there is one thing melonDS didn't tell me. On my own DS, with a flashcart, the game's frame counter showed around 30 fps instead of 60, all the time. So I ran the benchmark ROM on the real console, it writes its results to the SD card, and compared them with melonDS line by line.
 
-That will be the second part of this article. In the meantime you can already try it on your own DS or in melonDS, just don't be surprised if it runs at 30 fps on the real console for now. And maybe one day I'll try local wireless multiplayer, with two DS building the same factory!
+The real DS is about a third slower than the emulator for this game. The factory of 890 buildings takes 12.2 ms per frame instead of 9.1 ms, and clearing the big buffer of the top screen takes 4 times longer, writing to the main memory is much slower on the real hardware than in melonDS. That's still under the 16.7 ms of a frame most of the time.
+
+The 30 fps came from somewhere else, and it's a bit funny. The frame counter is shown in the statistics screen, and this screen was fully redrawn on every frame. On the real console that alone took almost 16 ms, so as soon as you opened the statistics, the game dropped to 30 fps... and showed you 30 fps. The screen now refreshes 8 times per second and the counter shows the real speed. Small and medium factories run at 60 fps on the real console, and only very big ones slow down a bit.
+
+There is still some margin to win on the real hardware, starting with that buffer that is cleared on every frame, and I'll probably write a second part about it. In the meantime you can already try the game on your own DS or in melonDS. And maybe one day I'll try local wireless multiplayer, with two DS building the same factory!
 
 **[Download Factory DS](/files/factory-ds.nds)** (factory-ds.nds, 1.9 MB, in English and French). It runs on a real DS with a flashcart, or in an emulator like [melonDS](https://melonds.kuribo64.net/).
