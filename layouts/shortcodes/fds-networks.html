@@ -1,0 +1,266 @@
+{{ $mode := .Get "mode" | default "power" }}
+{{ $caption := .Get "caption" }}
+{{ $id := delimit (shuffle (seq 1 9)) "" }}
+<figure class="fdsn" id="fdsn-{{ $id }}" data-mode="{{ $mode }}" style="margin:1.5em 0">
+  <div class="fdsn-nav" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px"></div>
+  <div class="fdsn-step" style="min-height:5.2em;font-size:.9em;line-height:1.5;margin-bottom:8px"></div>
+  <canvas width="384" height="160" style="width:100%;max-width:768px;display:block;margin:0 auto;image-rendering:pixelated;image-rendering:crisp-edges;border-radius:8px;background:#1d1b24;border:6px solid #1d1b24;box-sizing:border-box;cursor:pointer"></canvas>
+  <div class="fdsn-panel" style="font-size:.85em;margin-top:8px;line-height:1.6;min-height:3.3em"></div>
+  {{ with $caption }}<figcaption style="text-align:center;font-style:italic;margin-top:8px;font-size:0.9em;color:#666">{{ . }}</figcaption>{{ end }}
+</figure>
+<script>
+(function () {
+  var root = document.getElementById("fdsn-{{ $id }}");
+  var MODE = root.getAttribute("data-mode");
+  var cv = root.querySelector("canvas"), g = cv.getContext("2d");
+  var stepEl = root.querySelector(".fdsn-step"), panel = root.querySelector(".fdsn-panel");
+  var TS = 16, GW = 24, GH = 10;
+  var SP = { pole: 3, gen0: 4, solar0: 7, solar1: 8, efur0: 13, asm0: 16, tank: 19, wpump: 20, pipe0: 21 };
+  var sheet = new Image(); sheet.src = "/img/factory-ds/sprites.png";
+  var COLS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7"];
+  // valeurs du jeu (source/main.c)
+  var LINK = 7, RADIUS = { pole: 3, gen: 6 }, USE = { efur: 5, asm: 3 }, CAP = { pipe: 20, tank: 1000, wpump: 20 };
+  function hash(x, y) { var h = (x * 374761393 + y * 668265263) >>> 0; h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; }
+  function rgba(hex, a) { var n = parseInt(hex.slice(1), 16); return "rgba(" + (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")"; }
+  function spr(i, x, y) { g.drawImage(sheet, i * 16, 0, 16, 16, x, y, 16, 16); }
+  function ease(u) { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); }
+  function ground(night, water) {
+    for (var y = 0; y < GH; y++) for (var x = 0; x < GW; x++) { var h = hash(x, y) % 64; spr(h === 0 ? 2 : h < 14 ? 1 : 0, x * TS, y * TS); }
+    if (water) { g.fillStyle = "#3b7fd9"; g.fillRect(0, 0, TS, GH * TS); }
+    if (night) { g.fillStyle = "rgba(10,20,60,.5)"; g.fillRect(0, 0, cv.width, cv.height); }
+  }
+  function label(txt, x, y, col) {
+    g.font = "bold 8px monospace"; g.textAlign = "center"; g.textBaseline = "middle";
+    var w = g.measureText(txt).width + 4;
+    g.fillStyle = col || "#1d1b24"; g.fillRect(Math.round(x - w / 2), y - 5, Math.ceil(w), 10);
+    g.fillStyle = "#fff"; g.fillText(txt, x, y + .5);
+  }
+  function dot(col) { return '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + col + ';margin-right:6px;vertical-align:middle"></span>'; }
+  function bar(col, v) { return '<span style="display:inline-block;vertical-align:middle;width:90px;height:8px;background:#ddd;border-radius:4px;overflow:hidden;margin:0 6px"><span style="display:block;height:100%;width:' + Math.max(0, Math.min(100, v)) + '%;background:' + col + '"></span></span>'; }
+  var lastStep = -1, lastPanel = "";
+  function setStep(i, n, title, text) {
+    if (i === lastStep) return; lastStep = i;
+    stepEl.innerHTML = '<b>Step ' + (i + 1) + '/' + n + ': ' + title + '</b><br>' + text;
+  }
+  function setPanel(h) { if (h !== lastPanel) { panel.innerHTML = h; lastPanel = h; } }
+
+  // =============================================================== électricité
+  function powerScene() {
+    var B = [
+      { x: 2, y: 4, t: "gen" }, { x: 6, y: 4, t: "pole" }, { x: 12, y: 4, t: "pole" },
+      { x: 20, y: 2, t: "solar" }, { x: 21, y: 5, t: "pole" }, { x: 22, y: 2, t: "solar" },
+      { x: 5, y: 2, t: "efur" }, { x: 7, y: 2, t: "efur" }, { x: 5, y: 6, t: "efur" }, { x: 7, y: 6, t: "efur" },
+      { x: 11, y: 2, t: "asm" }, { x: 13, y: 2, t: "asm" }, { x: 12, y: 6, t: "asm" },
+      { x: 20, y: 7, t: "asm" }, { x: 22, y: 7, t: "asm" }
+    ];
+    var nodes = B.filter(function (b) { return b.t === "gen" || b.t === "pole" || b.t === "solar"; }).sort(function (a, b) { return a.x - b.x; });
+    var machines = B.filter(function (b) { return USE[b.t]; });
+    // le vrai calcul, rejoué pas à pas : pour chaque nœud, les suivants à 7 colonnes ou moins
+    var uf = nodes.map(function (_, i) { return i; });
+    function find(a) { while (uf[a] !== a) a = uf[a]; return a; }
+    var events = [];
+    for (var i = 0; i < nodes.length; i++)
+      for (var j = i + 1; j < nodes.length && nodes[j].x - nodes[i].x <= LINK; j++) {
+        if (Math.abs(nodes[j].y - nodes[i].y) > LINK) continue;
+        var a = find(i), c = find(j), m = a !== c; if (m) uf[a] = c;
+        events.push({ i: i, j: j, merged: m });
+      }
+    var root = nodes.map(function (_, k) { return find(k); }), netId = {}, nn = 0;
+    root.forEach(function (r) { if (netId[r] === undefined) netId[r] = nn++; });
+    var nodeNet = root.map(function (r) { return netId[r]; });
+    var cover = [], mNet = machines.map(function () { return -1; });
+    nodes.forEach(function (n, k) {
+      var r = RADIUS[n.t]; if (!r) return;
+      var got = [];
+      machines.forEach(function (m, q) { if (mNet[q] < 0 && Math.abs(m.x - n.x) <= r && Math.abs(m.y - n.y) <= r) { mNet[q] = nodeNet[k]; got.push(q); } });
+      cover.push({ k: k, got: got });
+    });
+    function balance(night) {
+      var nets = [];
+      for (var q = 0; q < nn; q++) nets.push({ prod: 0, cons: 0 });
+      nodes.forEach(function (n, k) { if (n.t === "gen") nets[nodeNet[k]].prod += 20; if (n.t === "solar" && !night) nets[nodeNet[k]].prod += 4; });
+      machines.forEach(function (m, q) { if (mNet[q] >= 0) nets[mNet[q]].cons += USE[m.t]; });
+      nets.forEach(function (n) { n.sat = n.cons ? Math.min(100, Math.floor(n.prod * 100 / n.cons)) : 100; });
+      return nets;
+    }
+    var T_SORT = 3.5, T_EV = 1.1, T_COV = 1.6;
+    var STEPS = [
+      { d: 3, title: "the factory", text: "A generator, some poles, two solar panels and machines. Nothing is connected yet: the game has to find out who powers what." },
+      { d: T_SORT, title: "sort the power nodes by x", text: "Generators, poles and solar panels are sorted from left to right. Now each node only has to look at the next ones, until it finds one more than 7 columns away." },
+      { d: events.length * T_EV + 1, title: "link nodes at 7 tiles or less", text: "Each node looks to its right, in a window of 7 tiles. When two nodes are close, their groups are merged (union-find). A cable is drawn only when two groups really join, so there is never a spaghetti of wires. Solar panels are linked without a visible cable." },
+      { d: cover.length * T_COV + 1, title: "who powers what", text: "A pole powers the machines up to 3 tiles around it, a generator up to 6. Each machine takes the first network that reaches it." },
+      { d: 4.5, title: "the balance, twice per second", text: "Each network adds what it produces and what its machines need. If it's short, all its machines slow down by the same amount: here, 20 for 29 means 68% speed." },
+      { d: 4.5, title: "night falls", text: "The solar panels stop producing. Their network has no power left and its machines stop, while the generator's network keeps going." }
+    ];
+    var TOTAL = STEPS.reduce(function (s, x) { return s + x.d; }, 0);
+    return { steps: STEPS, render: function (si, t, time) {
+      var night = si === 5 && t > 0.6;
+      ground(night);
+      var shownEv = si < 2 ? 0 : si > 2 ? events.length : Math.min(events.length, Math.floor(t / T_EV));
+      var shownCov = si < 3 ? 0 : si > 3 ? cover.length : Math.min(cover.length, Math.floor(t / T_COV) + 1);
+      var uf2 = nodes.map(function (_, k) { return k; });
+      function f2(a) { while (uf2[a] !== a) a = uf2[a]; return a; }
+      for (var e = 0; e < shownEv; e++) if (events[e].merged) uf2[f2(events[e].i)] = f2(events[e].j);
+      var gcol = nodes.map(function (n, k) {
+        var r = f2(k), size = 0; for (var q = 0; q < nodes.length; q++) if (f2(q) === r) size++;
+        return size > 1 || si > 2 ? COLS[nodeNet[k] % COLS.length] : null;
+      });
+      // zones alimentées
+      for (var cc = 0; cc < shownCov; cc++) {
+        var n = nodes[cover[cc].k], r = RADIUS[n.t], grow = cc === shownCov - 1 && si === 3 ? ease((t - cc * T_COV) / 0.8) : 1, rr = r * grow, col = COLS[nodeNet[cover[cc].k] % COLS.length];
+        g.fillStyle = rgba(col, .12); g.fillRect((n.x - rr) * TS, (n.y - rr) * TS, (2 * rr + 1) * TS, (2 * rr + 1) * TS);
+        g.strokeStyle = rgba(col, .8); g.lineWidth = 1; g.strokeRect((n.x - rr) * TS + .5, (n.y - rr) * TS + .5, (2 * rr + 1) * TS - 1, (2 * rr + 1) * TS - 1);
+      }
+      var nets = balance(night), covered = {};
+      for (cc = 0; cc < shownCov; cc++) cover[cc].got.forEach(function (q) { covered[q] = 1; });
+      // machines
+      machines.forEach(function (m, q) {
+        var on = si >= 4 && mNet[q] >= 0, sat = on ? nets[mNet[q]].sat : 0, fr = sat > 0 ? 1 + (Math.floor(time * 8 * sat / 100) & 1) : 0;
+        spr(SP[m.t + "0"] + fr, m.x * TS, m.y * TS);
+        if (covered[q]) { g.fillStyle = COLS[mNet[q] % COLS.length]; g.fillRect(m.x * TS + 1, m.y * TS + 14, si >= 4 ? Math.max(1, Math.round(14 * sat / 100)) : 14, 2); }
+        if (si >= 4 && sat === 0) { g.fillStyle = "#e34948"; g.fillRect(m.x * TS + 11, m.y * TS + 1, 4, 4); }
+      });
+      // liens : câble entre poteaux et générateur, pointillés vers les panneaux solaires
+      for (e = 0; e < shownEv; e++) {
+        var ev = events[e]; if (!ev.merged) continue;
+        var A = nodes[ev.i], C = nodes[ev.j], wired = A.t !== "solar" && C.t !== "solar";
+        g.strokeStyle = wired ? "#3a2a22" : rgba(gcol[ev.i] || "#ffffff", .9); g.lineWidth = 1;
+        if (!wired) g.setLineDash([2, 2]);
+        g.beginPath(); g.moveTo(A.x * TS + 8, A.y * TS + 3); g.quadraticCurveTo((A.x + C.x) * TS / 2 + 8, (A.y + C.y) * TS / 2 + 9, C.x * TS + 8, C.y * TS + 3); g.stroke();
+        g.setLineDash([]);
+      }
+      // nœuds
+      nodes.forEach(function (n, k) {
+        spr(n.t === "solar" ? (night ? SP.solar0 : SP.solar1) : n.t === "gen" ? SP.gen0 + (si >= 4 ? 1 + (Math.floor(time * 4) & 1) : 0) : SP.pole, n.x * TS, n.y * TS);
+        if (gcol[k]) { g.strokeStyle = gcol[k]; g.lineWidth = 2; g.strokeRect(n.x * TS - 1, n.y * TS - 1, 18, 18); }
+      });
+      // tri : numéros et ligne de balayage
+      if (si === 1 || si === 2) {
+        var sx = si === 1 ? ease(t / (T_SORT - .5)) * GW * TS : 1e9;
+        nodes.forEach(function (n, k) { if (n.x * TS + 8 <= sx) label(String(k + 1), n.x * TS + 8, n.y * TS - 4); });
+        if (si === 1) { g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, GH * TS); g.stroke(); g.setLineDash([]); }
+      }
+      // fenêtre de recherche et lien testé
+      if (si === 2 && shownEv < events.length) {
+        var cur = events[shownEv], N = nodes[cur.i], M = nodes[cur.j], u = (t - shownEv * T_EV) / T_EV;
+        g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 1; g.setLineDash([3, 2]);
+        g.strokeRect(N.x * TS + .5, Math.max(0, N.y - LINK) * TS + .5, (LINK + 1) * TS - 1, (Math.min(GH, N.y + LINK + 1) - Math.max(0, N.y - LINK)) * TS - 1); g.setLineDash([]);
+        if (u > .35) {
+          g.strokeStyle = cur.merged ? "#ffffff" : "rgba(255,255,255,.6)"; g.setLineDash(cur.merged ? [] : [1, 3]);
+          g.beginPath(); g.moveTo(N.x * TS + 8, N.y * TS + 8); g.lineTo(M.x * TS + 8, M.y * TS + 8); g.stroke(); g.setLineDash([]);
+          label(cur.merged ? "merge" : "same group", (N.x + M.x) * TS / 2 + 8, (N.y + M.y) * TS / 2 + 8, cur.merged ? "#1baf7a" : "#52514e");
+        }
+      }
+      var h = "";
+      if (si >= 4) nets.forEach(function (n, q) { h += "<div>" + dot(COLS[q % COLS.length]) + "<b>Network " + (q + 1) + "</b>: produces " + n.prod + ", needs " + n.cons + bar(COLS[q % COLS.length], n.sat) + "<b>" + n.sat + "%</b> speed</div>"; });
+      else if (si >= 2) { var groups = {}; for (var k = 0; k < nodes.length; k++) groups[f2(k)] = 1; var ng = Object.keys(groups).length; h = "<div>" + nodes.length + " nodes, " + ng + " group" + (ng > 1 ? "s" : "") + "</div>"; }
+      setPanel(h);
+    } };
+  }
+
+  // =============================================================== fluides
+  function fluidScene() {
+    var P = [{ x: 1, y: 4, t: "wpump" }];
+    for (var x = 2; x <= 9; x++) P.push({ x: x, y: 4, t: "pipe" });
+    P.push({ x: 10, y: 4, t: "tank" }); P.push({ x: 11, y: 4, t: "pipe" }); P.push({ x: 12, y: 4, t: "pipe" });
+    for (x = 14; x <= 19; x++) P.push({ x: x, y: 4, t: "pipe" });
+    P.push({ x: 20, y: 4, t: "tank" });
+    for (var y = 5; y <= 7; y++) P.push({ x: 17, y: y, t: "pipe" });
+    P.push({ x: 17, y: 8, t: "tank" });
+    var GAP = { x: 13, y: 4, t: "pipe" }, CUT = { x: 6, y: 4 };
+    function capOf(list) { return list.reduce(function (s, p) { return s + CAP[p.t]; }, 0); }
+    var left = P.filter(function (p) { return p.x <= 12 && p.y === 4; }), right = P.filter(function (p) { return left.indexOf(p) < 0; });
+    var capL = capOf(left), capR = capOf(right), capAll = capL + capR + CAP.pipe;
+    var FILL = 0.8 * capL;
+    var STEPS = [
+      { d: 3, title: "pipes, tanks and a pump", text: "Two separate groups of pipes and tanks. In the game, water never flows from one pipe to the next: that would cost far too much." },
+      { d: 3.5, title: "find the networks", text: "Each piece is merged with its right and bottom neighbors (union-find). Every connected group becomes one network, and a network is one single tank: its capacity is the sum of its pieces." },
+      { d: 4, title: "the pump fills its network", text: "The pump adds 2 units per frame to the amount of its network. There is one number per network, so every piece shows the same level." },
+      { d: 5, title: "close the gap", text: "When a pipe is placed, each piece first gets back its share of its old network. Then the networks are rebuilt and their shares are added up: one bigger tank, one shared level. Nothing is created." },
+      { d: 5, title: "cut a pipe", text: "The same thing the other way: each piece takes its share in proportion to its capacity, then two networks are rebuilt. Each side keeps the same level, and only the water of the removed pipe is lost." }
+    ];
+    var TOTAL = STEPS.reduce(function (s, x) { return s + x.d; }, 0);
+    function pipeMask(p, set) {
+      var m = 0;
+      [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(function (d, k) { if (set.some(function (q) { return q.x === p.x + d[0] && q.y === p.y + d[1]; })) m |= 1 << k; });
+      return m;
+    }
+    return { steps: STEPS, render: function (si, t, time) {
+      ground(false, true);
+      var set = P.slice(), nets;
+      if (si <= 1) nets = [{ list: left, amount: 0, cap: capL }, { list: right, amount: 0, cap: capR }];
+      else if (si === 2) nets = [{ list: left, amount: FILL * ease(t / 3.5), cap: capL }, { list: right, amount: 0, cap: capR }];
+      else if (si === 3) {
+        if (t < 1) nets = [{ list: left, amount: FILL, cap: capL }, { list: right, amount: 0, cap: capR }];
+        else { set.push(GAP); nets = [{ list: left.concat([GAP], right), amount: FILL, cap: capAll, from: ease((t - 1) / 2) }]; }
+      } else {
+        set.push(GAP);
+        var lvl = FILL / capAll;
+        if (t < 1.2) nets = [{ list: left.concat([GAP], right), amount: FILL, cap: capAll }];
+        else {
+          set = set.filter(function (p) { return !(p.x === CUT.x && p.y === CUT.y); });
+          var a = set.filter(function (p) { return p.y === 4 && p.x < CUT.x; }), b = set.filter(function (p) { return a.indexOf(p) < 0; });
+          nets = [{ list: a, amount: lvl * capOf(a), cap: capOf(a) }, { list: b, amount: lvl * capOf(b), cap: capOf(b) }];
+        }
+      }
+      var reveal = si === 1 ? ease(t / 2.5) * (GW + 2) : 1e9;
+      set.forEach(function (p) {
+        var k = -1; nets.forEach(function (n, q) { if (n.list.indexOf(p) >= 0) k = q; });
+        if (p.t === "pipe") spr(SP.pipe0 + pipeMask(p, set), p.x * TS, p.y * TS); else spr(SP[p.t], p.x * TS, p.y * TS);
+        if (k < 0 || si < 1 || p.x > reveal) return;
+        var n = nets[k], col = COLS[k % COLS.length], lv = n.cap ? n.amount / n.cap : 0;
+        if (n.from !== undefined && n.from < 1) { var before = left.indexOf(p) >= 0 ? FILL / capL : 0; lv = before + (lv - before) * n.from; }
+        g.strokeStyle = col; g.lineWidth = 1; g.strokeRect(p.x * TS + .5, p.y * TS + .5, 15, 15);
+        g.fillStyle = "rgba(20,30,40,.8)"; g.fillRect(p.x * TS + 3, p.y * TS + 12, 10, 3);
+        g.fillStyle = "#3b9cf0"; g.fillRect(p.x * TS + 3, p.y * TS + 12, Math.round(10 * lv), 3);
+      });
+      if (si === 1 && reveal < GW) { g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(reveal * TS, 0); g.lineTo(reveal * TS, GH * TS); g.stroke(); g.setLineDash([]); }
+      if (si === 3 && t >= 1 && t < 2.5) { g.strokeStyle = "#fff"; g.lineWidth = 2; g.strokeRect(GAP.x * TS - 1, GAP.y * TS - 1, 18, 18); label("+ pipe", GAP.x * TS + 8, GAP.y * TS - 7, "#1baf7a"); }
+      if (si === 4 && t >= 1.2 && t < 2.8) { g.strokeStyle = "#e34948"; g.lineWidth = 2; g.strokeRect(CUT.x * TS - 1, CUT.y * TS - 1, 18, 18); label("cut", CUT.x * TS + 8, CUT.y * TS - 7, "#e34948"); }
+      var h = "";
+      if (si >= 1) nets.forEach(function (n, q) { h += "<div>" + dot(COLS[q % COLS.length]) + "<b>Network " + (q + 1) + "</b>: " + n.list.length + " pieces, " + Math.round(n.amount) + " / " + n.cap + " water" + bar(COLS[q % COLS.length], n.cap ? n.amount * 100 / n.cap : 0) + "</div>"; });
+      setPanel(h);
+    } };
+  }
+
+  // lecture : automatique en boucle ; un clic passe en manuel (l'étape joue puis reste sur sa fin)
+  var scene = MODE === "power" ? powerScene() : fluidScene(), STEPS = scene.steps, N = STEPS.length;
+  var TOTAL = STEPS.reduce(function (s, x) { return s + x.d; }, 0), now = 0, auto = true, cur = 0, curStart = 0, t0 = null;
+  var nav = root.querySelector(".fdsn-nav"), navBtns = [];
+  function mk(label, fn) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = label;
+    b.style.cssText = "font:inherit;font-size:.8em;min-width:2.2em;padding:3px 8px;border-radius:6px;border:1px solid #bbb;background:#f6f5f2;color:#222;cursor:pointer";
+    b.onclick = fn; nav.appendChild(b); return b;
+  }
+  function go(i) { auto = false; cur = (i + N) % N; curStart = now; }
+  mk("\u25C0", function () { go(cur - 1); });
+  for (var k = 0; k < N; k++) (function (k) { navBtns.push(mk(String(k + 1), function () { go(k); })); })(k);
+  mk("\u25B6", function () { go(cur + 1); });
+  var playBtn = mk("Play", function () { if (!auto) { auto = true; t0 = null; } });
+  cv.addEventListener("click", function () { go(cur + 1); });
+  var lastNav = "";
+  function paintNav() {
+    var key = cur + (auto ? "a" : "m"); if (key === lastNav) return; lastNav = key;
+    navBtns.forEach(function (b, k) { var on = k === cur; b.style.background = on ? "#2a78d6" : "#f6f5f2"; b.style.color = on ? "#fff" : "#222"; b.style.borderColor = on ? "#2a78d6" : "#bbb"; });
+    playBtn.textContent = auto ? "Pause" : "Play";
+    playBtn.onclick = auto ? function () { go(cur); } : function () { auto = true; t0 = null; };
+  }
+  function loop(ts) {
+    now = ts / 1000; g.imageSmoothingEnabled = false;
+    var si, t;
+    if (auto) {
+      if (t0 === null) t0 = now - STEPS.slice(0, cur).reduce(function (s, x) { return s + x.d; }, 0);
+      t = (now - t0) % TOTAL; si = 0;
+      while (t >= STEPS[si].d) { t -= STEPS[si].d; si++; }
+      cur = si;
+    } else { si = cur; t = Math.min(now - curStart, STEPS[si].d - 0.001); }
+    setStep(si, N, STEPS[si].title, STEPS[si].text); paintNav();
+    scene.render(si, t, now);
+    requestAnimationFrame(loop);
+  }
+  var started = false;
+  function start() { if (!started) { started = true; requestAnimationFrame(loop); } }
+  sheet.onload = start;
+  if (sheet.complete) start();
+})();
+</script>
